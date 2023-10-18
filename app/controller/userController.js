@@ -1,7 +1,8 @@
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 const ApiError = require('../error/ApiError');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const User = require('../models/user')
 
 const generateJwt = (id, name, email) => {
     return jwt.sign(
@@ -18,19 +19,20 @@ class UserController {
         if(!name || !email || !password) {
             return next(ApiError.badRequest('Некорректный email, имя или пароль'))
         }
-        const candidate = await User.findOne({where: {email, name}})
+        const candidate = await prisma.Users.findFirst({where: { OR: [{email }, {name}] },
+        });
         if (candidate) {
             return next(ApiError.badRequest('Пользователь с таким именем или email уже существует'))
         }
         const hashPassword = await bcrypt.hash(password, 5)
-        const user = await User.create({name, email, password: hashPassword})
+        const user = await prisma.Users.create({ data: { name, email, password: hashPassword } });
         const token = generateJwt(user.id, user.name, user.email)
             return res.json({token})
         }
 
     async login(req, res, next) {
         const {name, email, password} = req.body
-        const user = await User.findOne({where: {email, name}})
+        const user = await prisma.Users.findFirst({where: { OR: [{email }, {name}] },})
         if (!user) {
             return next(ApiError.internal('Пользователь не найден'))
         }

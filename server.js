@@ -1,10 +1,10 @@
 const express = require('express');
-const sequelize = require('./app/db');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const cors = require('cors')
 const bodyParser = require('body-parser')
-const Car = require('./app/models/car')
 const errorHandler = require('./app/middleware/ErrorHandlingMiddleware')
 
 dotenv.config();
@@ -45,7 +45,7 @@ process.on('SIGINT', async () => {
 
 async function getCarInfoByVIN(VIN) {
   try {
-    const carInfo = await Car.findOne({ where: { VIN } });
+    const carInfo = await prisma.Cars.findFirst({ where: { OR: [{VIN }] },});
     console.log(carInfo)
 
   if (!carInfo) {
@@ -128,12 +128,18 @@ app.listen(PORT, () => {
 });
 
 // Initialize PostgreSQL database connection
-sequelize
-  .sync()
-  .then(() => {
-    console.log('PostgreSQL database connected');
-  })
-  .catch((error) => {
-    console.error('Unable to connect to PostgreSQL database:', error);
-  });
+async function main() {
+  try {
+    await prisma.$connect();
+    console.log('Postgres database connected');
+    
+  } catch (error) {
+    console.error('Unable to connect to the database:', error);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
 
+main().catch((e) => {
+  throw e;
+});
